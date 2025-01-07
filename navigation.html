@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #map {
+            height: 80%;
+            width: 100%;
+        }
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        button {
+            background-color: #3498db;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+<div class="nav-buttons">
+    <button onclick="goToIndex()">Go to Index</button>
+    <button onclick="goToDestination()">Set Destination</button>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- Leaflet Routing Machine JS -->
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.min.js"></script>
+
+<script>
+    let map, routingControl, userMarker, steps;
+    let startCoords = JSON.parse(localStorage.getItem('startLocation'));
+    let destinationCoords = JSON.parse(localStorage.getItem('destination'));
+    let selectedMode = localStorage.getItem('navigationMode') || 'driving';
+    let spokenSteps = new Set();
+
+    function initializeMap() {
+        map = L.map('map').setView([40.712776, -74.005974], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        if (!startCoords || !destinationCoords) {
+            alert("Please set both starting location and destination.");
+            window.location.href = 'destination.html';
+            return;
+        }
+
+        // Start navigation with live location tracking
+        startNavigation();
+
+        // Watch the user's position
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(updateLocation, locationError, {
+                enableHighAccuracy: true,
+                maximumAge: 1000, // Update location every second
+                timeout: 5000
+            });
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+    }
+
+    function updateLocation(position) {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        // Initialize or update user marker
+        if (userMarker) {
+            userMarker.setLatLng([latitude, longitude]);
+        } else {
+            userMarker = L.marker([latitude, longitude], {icon: L.icon({
+                iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Location_dot_blue.svg/1024px-Location_dot_blue.svg.png',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            })}).addTo(map);
+        }
+
+        // Update route dynamically with live position
+        if (routingControl) {
+            routingControl.setWaypoints([
+                L.latLng(latitude, longitude),
+                L.latLng(destinationCoords[1], destinationCoords[0])
+            ]);
+
+            // Check proximity to next step and trigger TTS if within range
+            if (steps) {
+                steps.forEach((step, index) => {
+                    const stepLatLng = L.latLng(step.latLng[0], step.latLng[1]);
+                    const distanceToStep = map.distance(userMarker.getLatLng(), stepLatLng);
+
+                    // Trigger TTS at appropriate distances (e.g., 500m, 200m, 100m)
+                    if (distanceToStep <= 100 && !spokenSteps.has(index)) {
+                        speakDirection(step.text);
+                        spokenSteps.add(index);
+                    }
+                });
+            }
+        }
+    }
+
+    function startNavigation() {
+        routingControl = L.Routing.control({
+            waypoints: [
+                L.latLng(startCoords[1], startCoords[0]),
+                L.latLng(destinationCoords[1], destinationCoords[0])
+            ],
+            routeWhileDragging: true,
+            router: L.Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1'
+            }),
+            profile: selectedMode,
+            createMarker: function(i, waypoint, n) {
+                const markerOptions = {
+                    icon: L.icon({
+                        iconUrl: i === 0 ? 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Map_marker_icon_%E2%80%93_Nicolas_Mollet_%E2%80%93_Start_%E2%80%93_Tourism_%E2%80%93_32px.png/32px-Map_marker_icon_%E2%80%93_Nicolas_Mollet_%E2%80%93_Start_%E2%80%93_Tourism_%E2%80%93_32px.png' : 
+                                 (i === n - 1 ? 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Map_marker_icon_%E2%80%93_Nicolas_Mollet_%E2%80%93_Target_%E2%80%93_Tourism_%E2%80%93_32px.png/32px-Map_marker_icon_%E2%80%93_Nicolas_Mollet_%E2%80%93_Target_%E2%80%93_Tourism_%E2%80%93_32px.png' : 
+                                 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Location_dot_blue.svg/1024px-Location_dot_blue.svg.png'),
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 32]
+                    })
+                };
+                return L.marker(waypoint.latLng, markerOptions);
+            }
+        }).addTo(map);
+
+        // Update directions panel
+        routingControl.on('routesfound', function(e) {
+            const routes = e.routes;
+            steps = routes[0].instructions;
+        });
+    }
+
+    function speakDirection(text) {
+        const speech = new SpeechSynthesisUtterance(text);
+        window.speechSynthesis.speak(speech);
+    }
+
+    function locationError(error) {
+        console.error(`Error getting location: ${error.message}`);
+    }
+
+    function goToIndex() {
+        window.location.href = 'index.html';
+    }
+
+    function goToDestination() {
+        window.location.href = 'destination.html';
+    }
+
+    // Initialize the map on load
+    initializeMap();
+</script>
+</body>
+</html>

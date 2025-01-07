@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYC Advanced Navigator</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        * {
+            color: inherit;
+            background-color: inherit;
+        }
+
+        :root {
+            color-scheme: light;
+            --text-color: #2c2c2c;
+            --background-color: #fafafa;
+            --surface-color: #e7e7e7;
+            --accent-color: #424242;
+            --accent-text-color: #ffffff;
+            --error-color: #fa8796;
+        }
+
+        body {
+            min-height: 100%;
+            padding: 1rem;
+            color: var(--text-color);
+            background-color: var(--background-color);
+            font: 16px "Figtree", sans-serif;
+            line-height: 1.5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        #container {
+            max-width: 800px;
+            margin: 20px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #34495e;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        #map {
+            height: 600px;
+            width: 100%;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .leaflet-control-attribution {
+            display: none;
+        }
+
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+            background: #fff;
+            color: #000;
+        }
+
+        #controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        input, button, select {
+            width: 80%;
+            max-width: 300px;
+            padding: 10px;
+            margin: 5px;
+            border: none;
+            border-radius: 0.5rem;
+            background-color: var(--surface-color);
+            font-size: 1em;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: 100ms color cubic-bezier(0.32, 0, 0.67, 0), 100ms background-color cubic-bezier(0.32, 0, 0.67, 0);
+        }
+
+        button {
+            background-color: #2980b9;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #1F6391;
+        }
+
+        #obstacleList {
+            list-style-type: none;
+            padding: 0;
+            width: 100%;
+            margin: 0;
+            display: none;
+        }
+
+        #obstacleList li {
+            background-color: #fff;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            font-size: 1em;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .dark-mode {
+            background-color: #2c3e50;
+        }
+
+        .dark-mode #container {
+            background-color: #34495e;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .dark-mode h1, .dark-mode input, .dark-mode button {
+            color: #000;
+        }
+
+        .dark-mode input::placeholder {
+            color: #bdc3c7;
+        }
+
+        .dark-mode-toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background-color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: black;
+            font-size: 1.5em;
+            transition: background-color 0.3s, color 0.3s;
+            font-weight: bold;
+        }
+
+        .dark-mode-toggle:hover {
+            background-color: #dcdcdc;
+        }
+
+        .dark-mode .dark-mode-toggle {
+            background-color: #444;
+            color: white;
+        }
+
+        .category-dropdown {
+            width: 100%;
+            max-width: 300px;
+            margin-bottom: 10px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 400px;
+            border-radius: 10px;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover, .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body onload="initMap()">
+<div id="container">
+    <h1>Navigate Your City</h1>
+    <div id="map"></div>
+    <div id="controls">
+        <form id="userNameForm" onsubmit="setUserName(event)">
+            <input type="text" id="userName" placeholder="Enter your name" required>
+            <button type="submit">Set Name</button>
+        </form>
+        <form id="obstacleForm" onsubmit="addObstacleFromForm(event)" style="display:none;">
+            <input type="text" id="obstacleName" placeholder="Obstacle Name" required>
+            <select id="obstacleCategory" required multiple>
+                <option value="">Select Categories</option>
+            </select>
+            <button type="button" onclick="enableObstacleClick()">Set Obstacle Location</button>
+            <button type="submit">Add Obstacle</button>
+        </form>
+        <button id="setCurrentLocationButton" onclick="setCurrentLocationAsObstacle()" style="display:none;">Set Current Location as Obstacle</button>
+        <button id="clearObstaclesButton" onclick="clearObstacles()" style="display:none;">Clear Obstacles</button>
+        <ul id="obstacleList"></ul>
+        <select id="categoryDropdown" class="category-dropdown" onchange="filterObstaclesByCategory()">
+            <option value="">All Obstacles</option>
+        </select>
+        <button type="button" onclick="showCategoryModal()">NEW CATEGORY +</button>
+        <div class="nav-buttons">
+            <button onclick="openDestinationPage()">Set Destination</button>
+            <button onclick="openNavigationPage()">Open Navigation</button>
+        </div>
+    </div>
+</div>
+
+<div id="categoryModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeCategoryModal()">&times;</span>
+        <h2>Add New Category</h2>
+        <input type="text" id="newCategoryName" placeholder="Category Name" required>
+        <button type="button" onclick="addNewCategory()">Add Category</button>
+    </div>
+</div>
+
+<button id="toggleDarkMode" class="dark-mode-toggle">D</button>
+<script>
+    let map, userMarker, userCircle;
+    let obstacleLayer = L.layerGroup();
+    let obstacles = JSON.parse(localStorage.getItem('obstacles')) || [];
+    let categories = JSON.parse(localStorage.getItem('categories')) || [];
+    let currentClickLatLng = null;
+    let allowObstacleClick = false;
+    let userName = '';
+    let proximityAlertTriggered = false;
+    let activeCategory = '';
+
+    function initMap() {
+        map = L.map('map').setView([40.712776, -74.005974], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        obstacleLayer.addTo(map);
+
+        map.on('click', function(e) {
+            if (allowObstacleClick) {
+                currentClickLatLng = e.latlng;
+                alert(`Clicked at ${e.latlng.lat}, ${e.latlng.lng}. Click 'Add Obstacle' to confirm.`);
+                allowObstacleClick = false;
+            }
+        });
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(updateLocation, locationError, {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 5000
+            });
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+
+        updateObstacleList();
+        populateCategoryDropdown();
+    }
+
+    function updateLocation(position) {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        if (userMarker) {
+            userMarker.setLatLng([latitude, longitude]);
+            userCircle.setLatLng([latitude, longitude]);
+        } else {
+            userMarker = L.circleMarker([latitude, longitude], {
+                radius: 5,
+                color: '#1e90ff',
+                fillColor: '#1e90ff',
+                fillOpacity: 1
+            }).addTo(map);
+
+            userCircle = L.circle([latitude, longitude], {
+                color: '#1e90ff',
+                fillColor: '#1e90ff',
+                fillOpacity: 0.2,
+                radius: 2.13
+            }).addTo(map);
+        }
+
+        checkProximityToObstacles(latitude, longitude);
+    }
+
+    function checkProximityToObstacles(lat, lng) {
+        obstacles.forEach(obstacle => {
+            const distance = map.distance([lat, lng], obstacle.latlng);
+            if (distance <= 2.13 && !proximityAlertTriggered) {
+                proximityAlertTriggered = true;
+                alert(`Warning: You are within 7 feet of the obstacle "${obstacle.name}"!`);
+                setTimeout(() => proximityAlertTriggered = false, 5000);
+            }
+        });
+    }
+
+    function locationError(error) {
+        console.error(`Error getting location: ${error.message}`);
+    }
+
+    function addObstacleFromForm(event) {
+        event.preventDefault();
+        const name = document.getElementById('obstacleName').value;
+        const categories = Array.from(document.getElementById('obstacleCategory').selectedOptions).map(option => option.value);
+        if (currentClickLatLng && categories.length > 0) {
+            addObstacle(currentClickLatLng, name, categories);
+            currentClickLatLng = null;
+            document.getElementById('obstacleName').value = '';
+            document.getElementById('obstacleCategory').value = '';
+        } else {
+            alert("Please click on the map to set the obstacle location and select at least one category.");
+        }
+    }
+
+    function enableObstacleClick() {
+        allowObstacleClick = true;
+        alert("Click on the map to set the obstacle location.");
+    }
+
+    function setCurrentLocationAsObstacle() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(position => {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+                const name = prompt('Enter the name for the current location obstacle:');
+                const categories = Array.from(document.getElementById('obstacleCategory').selectedOptions).map(option => option.value);
+
+                if (name && categories.length > 0) {
+                    addObstacle({ lat: latitude, lng: longitude }, name, categories);
+                } else {
+                    alert("Please select at least one category.");
+                }
+            }, locationError, {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 5000
+            });
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+    }
+
+    function addObstacle(latlng, name, categories) {
+        const obstacle = L.circle(latlng, {
+            color: 'red',
+            fillColor: '#f03',
+            fillOpacity: 0.5,
+            radius: 2.13
+        }).addTo(obstacleLayer);
+
+        obstacles.push({ latlng, name, categories });
+        localStorage.setItem('obstacles', JSON.stringify(obstacles));
+        updateObstacleList();
+        filterObstaclesByCategory();
+    }
+
+    function updateObstacleList() {
+        const obstacleList = document.getElementById('obstacleList');
+        obstacleList.innerHTML = '';
+
+        obstacles.forEach(obstacle => {
+            const listItem = document.createElement('li');
+            listItem.textContent = `${obstacle.name} - (${obstacle.latlng.lat.toFixed(5)}, ${obstacle.latlng.lng.toFixed(5)}) [${obstacle.categories.join(', ')}]`;
+            obstacleList.appendChild(listItem);
+        });
+    }
+
+    function clearObstacles() {
+        obstacleLayer.clearLayers();
+        obstacles = [];
+        localStorage.removeItem('obstacles');
+        updateObstacleList();
+        alert('All obstacles cleared!');
+    }
+
+    function setUserName(event) {
+        event.preventDefault();
+        userName = document.getElementById('userName').value;
+        document.getElementById('userNameForm').style.display = 'none';
+        document.getElementById('obstacleForm').style.display = 'flex';
+        document.getElementById('setCurrentLocationButton').style.display = 'block';
+        document.getElementById('clearObstaclesButton').style.display = 'block';
+    }
+
+    function openDestinationPage() {
+        window.location.href = 'destination.html';
+    }
+
+    function openNavigationPage() {
+        window.location.href = 'navigation.html';
+    }
+
+    document.getElementById('toggleDarkMode').addEventListener('click', function() {
+        document.body.classList.toggle('dark-mode');
+        const button = document.getElementById('toggleDarkMode');
+        if (document.body.classList.contains('dark-mode')) {
+            button.textContent = 'L';
+            localStorage.setItem('dark-mode', 'true');
+        } else {
+            button.textContent = 'D';
+            localStorage.setItem('dark-mode', 'false');
+        }
+    });
+
+    if (localStorage.getItem('dark-mode') === 'true') {
+        document.body.classList.add('dark-mode');
+        document.getElementById('toggleDarkMode').textContent = 'L';
+    }
+
+    function populateCategoryDropdown() {
+        const dropdown = document.getElementById('categoryDropdown');
+        dropdown.innerHTML = '<option value="">All Obstacles</option>';
+
+        categories.sort((a, b) => a.localeCompare(b));
+
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            dropdown.appendChild(option);
+        });
+
+        const obstacleCategoryDropdown = document.getElementById('obstacleCategory');
+        obstacleCategoryDropdown.innerHTML = '';
+
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            obstacleCategoryDropdown.appendChild(option);
+        });
+    }
+
+    function showCategoryModal() {
+        document.getElementById('categoryModal').style.display = 'block';
+    }
+
+    function closeCategoryModal() {
+        document.getElementById('categoryModal').style.display = 'none';
+    }
+
+    function addNewCategory() {
+        const newCategoryName = document.getElementById('newCategoryName').value.trim();
+        if (newCategoryName && !categories.includes(newCategoryName)) {
+            categories.push(newCategoryName);
+            localStorage.setItem('categories', JSON.stringify(categories));
+            populateCategoryDropdown();
+            closeCategoryModal();
+        } else {
+            alert('Category name is empty or already exists.');
+        }
+    }
+
+    function filterObstaclesByCategory() {
+        const selectedCategory = document.getElementById('categoryDropdown').value;
+        activeCategory = selectedCategory;
+
+        obstacleLayer.clearLayers();
+
+        const obstacleList = document.getElementById('obstacleList');
+        obstacleList.innerHTML = '';
+        obstacleList.style.display = selectedCategory ? 'block' : 'none';
+
+        obstacles.forEach(obstacle => {
+            if (selectedCategory === '' || obstacle.categories.includes(selectedCategory)) {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${obstacle.name} - (${obstacle.latlng.lat.toFixed(5)}, ${obstacle.latlng.lng.toFixed(5)}) [${obstacle.categories.join(', ')}]`;
+                obstacleList.appendChild(listItem);
+
+                obstacleLayer.addLayer(L.circle(obstacle.latlng, {
+                    color: 'green',
+                    fillColor: '#0f0',
+                    fillOpacity: 0.5,
+                    radius: 2.13
+                }));
+            }
+        });
+    }
+</script>
+</body>
+</html>

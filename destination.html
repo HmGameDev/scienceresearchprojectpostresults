@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Locations</title>
+    <!-- Mapbox CSS for Geocoder -->
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
+    <link href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css' rel='stylesheet' />
+    <!-- Circular-black Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Circular+Std:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Circular Std', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ecf0f3;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #locationContainer {
+            width: 80%;
+            max-width: 400px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative; /* Ensure container allows absolute positioning */
+        }
+        h1 {
+            color: #34495e;
+            margin-bottom: 20px;
+        }
+        input, button, select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            font-size: 1em;
+        }
+        button {
+            background-color: #2980b9; /* Slightly darker blue */
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #1F6391; /* Even darker blue */
+        }
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .dark-mode {
+            background-color: #2c3e50;
+        }
+        .dark-mode #locationContainer {
+            background-color: #34495e;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        .dark-mode h1, .dark-mode input, .dark-mode button, .dark-mode select {
+            color: #000; /* Keep text color black */
+        }
+        .dark-mode input::placeholder {
+            color: #bdc3c7;
+        }
+        .dark-mode-toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background-color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: black;
+            font-size: 1.5em;
+            transition: background-color 0.3s, color 0.3s;
+            font-weight: bold;
+        }
+        .dark-mode-toggle:hover {
+            background-color: #dcdcdc;
+        }
+        .dark-mode .dark-mode-toggle {
+            background-color: #444;
+            color: white;
+        }
+        .mapboxgl-ctrl-geocoder {
+            width: 100%;
+            margin-bottom: 20px;
+            position: relative; /* Ensure suggestions are positioned properly */
+            z-index: 1; /* Ensure geocoder input is on top */
+        }
+        .mapboxgl-ctrl-geocoder--input {
+            font-size: 1em;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            width: 100%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .mapboxgl-ctrl-geocoder--suggestions {
+            z-index: 1000; /* Ensure suggestions are on top */
+            position: absolute; /* Position suggestions absolutely */
+            width: calc(100% - 20px); /* Ensure suggestions width matches input */
+            top: 50px; /* Space suggestions below input */
+        }
+    </style>
+</head>
+<body>
+<div id="locationContainer">
+    <h1>Set Locations</h1>
+    <!-- Geocoder inputs for start and destination locations -->
+    <div id="start-geocoder"></div>
+    <div id="destination-geocoder"></div>
+    <select id="mode">
+        <option value="driving">Driving</option>
+        <option value="walking">Walking</option>
+    </select>
+    <button onclick="saveLocationsAndNavigate()">Save and Open Navigation</button>
+
+    <!-- Navigation buttons -->
+    <div class="nav-buttons">
+        <button onclick="goToIndex()">Go to Index</button>
+        <button onclick="openNavigationPage()">Open Navigation</button>
+    </div>
+</div>
+<button id="toggleDarkMode" class="dark-mode-toggle">D</button>
+
+<!-- Mapbox GL JS and Geocoder -->
+<script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
+<script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js'></script>
+
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoiZXN0dXBpZGxvcmQiLCJhIjoiY2x6YTZsZzRvMGF4eTJqbjYyc2ZrMWlzNCJ9.dUkkQP4qicqwnN_JsClhkA';  // Your Mapbox access token
+
+    let startCoords = null;
+    let destinationCoords = null;
+
+    // Initialize Mapbox Geocoders for start and destination
+    const startGeocoder = new MapboxGeocoder({
+        accessToken: mapboxgl.accessToken,
+        placeholder: 'Enter Starting Location',
+        mapboxgl: mapboxgl
+    });
+
+    const destinationGeocoder = new MapboxGeocoder({
+        accessToken: mapboxgl.accessToken,
+        placeholder: 'Enter Destination',
+        mapboxgl: mapboxgl
+    });
+
+    // Handle geocoder result for starting location
+    startGeocoder.on('result', (e) => {
+        if (e.result && e.result.geometry) {
+            startCoords = e.result.geometry.coordinates;
+        } else {
+            alert("Invalid starting location. Please try again.");
+        }
+    });
+
+    // Handle geocoder result for destination
+    destinationGeocoder.on('result', (e) => {
+        if (e.result && e.result.geometry) {
+            destinationCoords = e.result.geometry.coordinates;
+        } else {
+            alert("Invalid destination. Please try again.");
+        }
+    });
+
+    // Append geocoders to their respective divs
+    document.getElementById('start-geocoder').appendChild(startGeocoder.onAdd());
+    document.getElementById('destination-geocoder').appendChild(destinationGeocoder.onAdd());
+
+    function saveLocationsAndNavigate() {
+        if (!startCoords || !destinationCoords) {
+            alert("Please set both starting location and destination.");
+            return;
+        }
+
+        const mode = document.getElementById('mode').value;
+        localStorage.setItem('startLocation', JSON.stringify(startCoords));
+        localStorage.setItem('destination', JSON.stringify(destinationCoords));
+        localStorage.setItem('navigationMode', mode); // Save the selected mode
+
+        // Navigate to navigation.html to show directions
+        window.location.href = 'navigation.html';
+    }
+
+    function goToIndex() {
+        window.location.href = 'index.html';
+    }
+
+    function openNavigationPage() {
+        window.location.href = 'navigation.html';
+    }
+
+    function goToDestination() {
+        window.location.href = 'destination.html';
+    }
+
+    // Dark mode toggle logic
+    document.getElementById('toggleDarkMode').addEventListener('click', function() {
+        document.body.classList.toggle('dark-mode');
+        const button = document.getElementById('toggleDarkMode');
+        if (document.body.classList.contains('dark-mode')) {
+            button.textContent = 'L';
+            localStorage.setItem('dark-mode', 'true');
+        } else {
+            button.textContent = 'D';
+            localStorage.setItem('dark-mode', 'false');
+        }
+    });
+
+    // Apply dark mode if previously enabled
+    if (localStorage.getItem('dark-mode') === 'true') {
+        document.body.classList.add('dark-mode');
+        document.getElementById('toggleDarkMode').textContent = 'L';
+    }
+</script>
+</body>
+</html>

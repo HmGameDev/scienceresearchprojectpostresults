@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Log</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #logContainer {
+            width: 80%;
+            max-width: 800px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            max-height: 70vh;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        #log {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            width: 100%;
+            height: 400px;
+            overflow-y: scroll;
+            border: 1px solid #ddd;
+        }
+        button {
+            background-color: #3498db;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Navigation Log</h1>
+<div id="logContainer">
+    <div id="log"></div>
+</div>
+
+<!-- Navigation buttons -->
+<div class="nav-buttons">
+    <button onclick="goToIndex()">Go to Index</button>
+    <button onclick="openNavigationPage()">Open Navigation</button>
+</div>
+
+<script>
+    let logElement = document.getElementById('log');
+    let obstacles = JSON.parse(localStorage.getItem('obstacles')) || [];
+    let proximityAlertTriggered = false;
+    let lastPosition = null;
+
+    // Function to log messages
+    function logMessage(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        logElement.innerHTML += `[${timestamp}] ${message}\n`;
+        logElement.scrollTop = logElement.scrollHeight;  // Auto scroll to the bottom
+    }
+
+    // Initialize geolocation tracking
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(updateLog, logError, {
+            enableHighAccuracy: true,
+            maximumAge: 1000,
+            timeout: 5000
+        });
+        setInterval(() => {
+            navigator.geolocation.getCurrentPosition(updateLog, logError, {
+                enableHighAccuracy: true,
+                maximumAge: 1000,
+                timeout: 5000
+            });
+        }, 1000); // Force log update every second
+    } else {
+        logMessage("Geolocation is not supported by this browser.");
+    }
+
+    function updateLog(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        lastPosition = position;
+
+        logMessage(`Live Coordinates: Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`);
+        checkProximityToObstacles(lat, lng);
+    }
+
+    function checkProximityToObstacles(lat, lng) {
+        obstacles.forEach(obstacle => {
+            const distance = calculateDistance(lat, lng, obstacle.latlng.lat, obstacle.latlng.lng);
+            logMessage(`Distance to obstacle "${obstacle.name}": ${distance.toFixed(2)} feet`);
+
+            if (distance <= 7 && !proximityAlertTriggered) {
+                proximityAlertTriggered = true;
+                logMessage(`ALERT: Approaching obstacle "${obstacle.name}". You are ${distance.toFixed(2)} feet away.`);
+                setTimeout(() => { proximityAlertTriggered = false; }, 5000); // Prevent repeat alerts within 5 seconds
+            }
+        });
+    }
+
+    function logError(error) {
+        logMessage(`Error: ${error.message}`);
+    }
+
+    // Haversine formula to calculate distance between two lat/lng points
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Radius of Earth in meters
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        const d = R * c; // in meters
+        return d * 3.28084; // Convert meters to feet
+    }
+
+    function goToIndex() {
+        window.location.href = 'index.html';
+    }
+
+    function openNavigationPage() {
+        window.location.href = 'navigation.html';
+    }
+</script>
+
+</body>
+</html>
