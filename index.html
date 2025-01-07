@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
-        * {
+       * {
             color: inherit;
             background-color: inherit;
         }
@@ -209,6 +209,7 @@
             text-decoration: none;
             cursor: pointer;
         }
+
     </style>
 </head>
 <body onload="initMap()">
@@ -224,6 +225,12 @@
             <input type="text" id="obstacleName" placeholder="Obstacle Name" required>
             <select id="obstacleCategory" required multiple>
                 <option value="">Select Categories</option>
+            </select>
+            <label for="obstacleSize">Select Obstacle Size:</label>
+            <select id="obstacleSize">
+                <option value="small">Small (5 feet)</option>
+                <option value="medium">Medium (7 feet)</option>
+                <option value="large">Large (10 feet)</option>
             </select>
             <button type="button" onclick="enableObstacleClick()">Set Obstacle Location</button>
             <button type="submit">Add Obstacle</button>
@@ -339,8 +346,9 @@
         event.preventDefault();
         const name = document.getElementById('obstacleName').value;
         const categories = Array.from(document.getElementById('obstacleCategory').selectedOptions).map(option => option.value);
+        const size = document.getElementById('obstacleSize').value;
         if (currentClickLatLng && categories.length > 0) {
-            addObstacle(currentClickLatLng, name, categories);
+            addObstacle(currentClickLatLng, name, categories, size);
             currentClickLatLng = null;
             document.getElementById('obstacleName').value = '';
             document.getElementById('obstacleCategory').value = '';
@@ -361,9 +369,10 @@
                 const longitude = position.coords.longitude;
                 const name = prompt('Enter the name for the current location obstacle:');
                 const categories = Array.from(document.getElementById('obstacleCategory').selectedOptions).map(option => option.value);
+                const size = document.getElementById('obstacleSize').value;
 
                 if (name && categories.length > 0) {
-                    addObstacle({ lat: latitude, lng: longitude }, name, categories);
+                    addObstacle({ lat: latitude, lng: longitude }, name, categories, size);
                 } else {
                     alert("Please select at least one category.");
                 }
@@ -377,15 +386,30 @@
         }
     }
 
-    function addObstacle(latlng, name, categories) {
+    function addObstacle(latlng, name, categories, size) {
+        let radius;
+        switch (size) {
+            case 'small':
+                radius = 1.52; // 5 feet in meters
+                break;
+            case 'medium':
+                radius = 2.13; // 7 feet in meters
+                break;
+            case 'large':
+                radius = 3.05; // 10 feet in meters
+                break;
+            default:
+                radius = 2.13; // default to medium if size is not recognized
+        }
+
         const obstacle = L.circle(latlng, {
             color: 'red',
             fillColor: '#f03',
             fillOpacity: 0.5,
-            radius: 2.13
+            radius: radius
         }).addTo(obstacleLayer);
 
-        obstacles.push({ latlng, name, categories });
+        obstacles.push({ latlng, name, categories, size });
         localStorage.setItem('obstacles', JSON.stringify(obstacles));
         updateObstacleList();
         filterObstaclesByCategory();
@@ -397,7 +421,7 @@
 
         obstacles.forEach(obstacle => {
             const listItem = document.createElement('li');
-            listItem.textContent = `${obstacle.name} - (${obstacle.latlng.lat.toFixed(5)}, ${obstacle.latlng.lng.toFixed(5)}) [${obstacle.categories.join(', ')}]`;
+            listItem.textContent = `${obstacle.name} - (${obstacle.latlng.lat.toFixed(5)}, ${obstacle.latlng.lng.toFixed(5)}) [${obstacle.categories.join(', ')}] - ${obstacle.size}`;
             obstacleList.appendChild(listItem);
         });
     }
@@ -501,14 +525,14 @@
         obstacles.forEach(obstacle => {
             if (selectedCategory === '' || obstacle.categories.includes(selectedCategory)) {
                 const listItem = document.createElement('li');
-                listItem.textContent = `${obstacle.name} - (${obstacle.latlng.lat.toFixed(5)}, ${obstacle.latlng.lng.toFixed(5)}) [${obstacle.categories.join(', ')}]`;
+                listItem.textContent = `${obstacle.name} - (${obstacle.latlng.lat.toFixed(5)}, ${obstacle.latlng.lng.toFixed(5)}) [${obstacle.categories.join(', ')}] - ${obstacle.size}`;
                 obstacleList.appendChild(listItem);
 
                 obstacleLayer.addLayer(L.circle(obstacle.latlng, {
                     color: 'green',
                     fillColor: '#0f0',
                     fillOpacity: 0.5,
-                    radius: 2.13
+                    radius: obstacle.size === 'small' ? 1.52 : obstacle.size === 'large' ? 3.05 : 2.13
                 }));
             }
         });
