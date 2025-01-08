@@ -54,11 +54,12 @@
 <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.min.js"></script>
 
 <script>
-    let map, routingControl, userMarker, steps;
+    let map, routingControl, userMarker, steps, obstacleLayer;
     let startCoords = JSON.parse(localStorage.getItem('startLocation'));
     let destinationCoords = JSON.parse(localStorage.getItem('destination'));
     let selectedMode = localStorage.getItem('navigationMode') || 'driving';
     let spokenSteps = new Set();
+    let proximityAlertTriggered = false;
 
     function initializeMap() {
         map = L.map('map').setView([40.712776, -74.005974], 12);
@@ -72,6 +73,9 @@
             window.location.href = 'destination.html';
             return;
         }
+
+        // Load obstacles
+        loadObstacles();
 
         // Start navigation with live location tracking
         startNavigation();
@@ -124,6 +128,9 @@
                 });
             }
         }
+
+        // Check proximity to obstacles
+        checkProximityToObstacles(latitude, longitude);
     }
 
     function startNavigation() {
@@ -161,6 +168,31 @@
     function speakDirection(text) {
         const speech = new SpeechSynthesisUtterance(text);
         window.speechSynthesis.speak(speech);
+    }
+
+    function loadObstacles() {
+        obstacleLayer = L.layerGroup().addTo(map);
+        const obstacles = JSON.parse(localStorage.getItem('obstacles')) || [];
+        obstacles.forEach(obstacle => {
+            L.circle(obstacle.latlng, {
+                color: 'red',
+                fillColor: '#f03',
+                fillOpacity: 0.5,
+                radius: obstacle.size === 'small' ? 1.52 : obstacle.size === 'large' ? 3.05 : 2.13
+            }).addTo(obstacleLayer).bindPopup(obstacle.name);
+        });
+    }
+
+    function checkProximityToObstacles(lat, lng) {
+        const obstacles = JSON.parse(localStorage.getItem('obstacles')) || [];
+        obstacles.forEach(obstacle => {
+            const distance = map.distance([lat, lng], obstacle.latlng);
+            if (distance <= (obstacle.size === 'small' ? 1.52 : obstacle.size === 'large' ? 3.05 : 2.13) && !proximityAlertTriggered) {
+                proximityAlertTriggered = true;
+                alert(`Warning: You are within the obstacle radius of "${obstacle.name}"!`);
+                setTimeout(() => proximityAlertTriggered = false, 5000);
+            }
+        });
     }
 
     function locationError(error) {

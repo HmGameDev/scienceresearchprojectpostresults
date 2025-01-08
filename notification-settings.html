@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification Settings</title>
+    <!-- Include the existing style.css -->
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .settings-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .settings-container h2 {
+            color: #34495e;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+        .settings-container label {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+        .settings-container select, .settings-container input {
+            width: 80%;
+            max-width: 300px;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            background-color: #fff;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            font-size: 1em;
+        }
+        .settings-container button {
+            background-color: #3498db;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 1em;
+            margin-top: 20px;
+        }
+        .settings-container button:hover {
+            background-color: #2980b9;
+        }
+        #backToIndex {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #3498db;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #backToIndex:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <div class="settings-container">
+        <h2>Notification Settings</h2>
+        <label for="notificationType">Notification Type:</label>
+        <select id="notificationType">
+            <option value="tts">Text-to-Speech</option>
+            <option value="popup">Popup</option>
+        </select>
+
+        <div id="popupDurationContainer" style="display: none;">
+            <label for="popupDuration">Popup Duration (seconds):</label>
+            <input type="number" id="popupDuration" min="1" max="60" value="5">
+        </div>
+
+        <button onclick="saveSettings()">Save Settings</button>
+    </div>
+</div>
+
+<button id="backToIndex" onclick="goToIndex()">Back to Index</button>
+<button id="toggleDarkMode" class="dark-mode-toggle">D</button>
+
+<script>
+    document.getElementById('notificationType').addEventListener('change', function() {
+        const popupDurationContainer = document.getElementById('popupDurationContainer');
+        if (this.value === 'popup') {
+            popupDurationContainer.style.display = 'block';
+        } else {
+            popupDurationContainer.style.display = 'none';
+        }
+    });
+
+    function saveSettings() {
+        const notificationType = document.getElementById('notificationType').value;
+        const popupDuration = document.getElementById('popupDuration').value;
+
+        localStorage.setItem('notificationType', notificationType);
+        if (notificationType === 'popup') {
+            localStorage.setItem('popupDuration', popupDuration);
+        } else {
+            localStorage.removeItem('popupDuration');
+        }
+
+        alert('Settings saved successfully!');
+    }
+
+    window.onload = function() {
+        const notificationType = localStorage.getItem('notificationType') || 'tts';
+        const popupDuration = localStorage.getItem('popupDuration') || 5;
+
+        document.getElementById('notificationType').value = notificationType;
+        document.getElementById('popupDuration').value = popupDuration;
+        if (notificationType === 'popup') {
+            document.getElementById('popupDurationContainer').style.display = 'block';
+        }
+
+        // Set dark mode based on localStorage
+        if (localStorage.getItem('dark-mode') === 'true') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('toggleDarkMode').textContent = 'L';
+        }
+    }
+
+    document.getElementById('toggleDarkMode').addEventListener('click', function() {
+        document.body.classList.toggle('dark-mode');
+        const button = document.getElementById('toggleDarkMode');
+        if (document.body.classList.contains('dark-mode')) {
+            button.textContent = 'L';
+            localStorage.setItem('dark-mode', 'true');
+        } else {
+            button.textContent = 'D';
+            localStorage.setItem('dark-mode', 'false');
+        }
+    });
+
+    function goToIndex() {
+        window.location.href = 'index.html';
+    }
+</script>
+</body>
+</html>

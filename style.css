@@ -1,0 +1,244 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #ecf0f3;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+#container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 20px;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-grow: 1;
+    animation: fadeIn 1s ease-in-out;
+}
+
+h1 {
+    color: #34495e;
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 2em;
+    animation: slideDown 0.5s ease-in-out;
+}
+
+#map {
+    width: 100%;
+    flex-grow: 1;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    height: 70vh; /* Ensure the map takes most of the screen height */
+}
+
+.leaflet-container {
+    height: 100%;
+    width: 100%;
+}
+
+.leaflet-control-attribution {
+    display: none;
+}
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: #fff;
+    color: #000;
+}
+
+#controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    animation: fadeIn 1s ease-in-out;
+}
+
+input, button, select {
+    width: 80%;
+    max-width: 300px;
+    padding: 10px;
+    margin: 5px;
+    border: none;
+    border-radius: 5px;
+    background-color: #fff;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    font-size: 1em;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+button {
+    background-color: #3498db;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+#obstacleList {
+    list-style-type: none;
+    padding: 0;
+    width: 100%;
+    margin: 0;
+    display: none; /* Hide by default */
+    animation: fadeIn 1s ease-in-out;
+}
+
+#obstacleList li {
+    background-color: #fff;
+    padding: 10px;
+    margin: 5px 0;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    font-size: 1em;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.nav-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.dark-mode {
+    background-color: #2c3e50;
+}
+
+.dark-mode #container {
+    background-color: #34495e;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+
+.dark-mode h1, .dark-mode input, .dark-mode button {
+    color: #000;
+}
+
+.dark-mode input::placeholder {
+    color: #bdc3c7;
+}
+
+.dark-mode-toggle {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 40px;
+    height: 40px;
+    background-color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: black;
+    font-size: 1.5em;
+    transition: background-color 0.3s, color 0.3s;
+    font-weight: bold;
+}
+
+.dark-mode-toggle:hover {
+    background-color: #dcdcdc;
+}
+
+.dark-mode .dark-mode-toggle {
+    background-color: #444;
+    color: white;
+}
+
+.category-dropdown {
+    width: 100%;
+    max-width: 300px;
+    margin-bottom: 10px;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgb(0,0,0);
+    background-color: rgba(0,0,0,0.4);
+    padding-top: 60px;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 400px;
+    border-radius: 10px;
+    animation: slideUp 0.5s ease-in-out;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover, .close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+/* Keyframes for animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
