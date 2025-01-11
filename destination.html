@@ -131,6 +131,10 @@
         <option value="driving">Driving</option>
         <option value="walking">Walking</option>
     </select>
+    <h3>Select Obstacle Categories to Avoid:</h3>
+    <select id="avoidCategories" multiple>
+        <!-- Options will be populated dynamically -->
+    </select>
     <button onclick="saveLocationsAndNavigate()">Save and Open Navigation</button>
 
     <!-- Navigation buttons -->
@@ -150,41 +154,60 @@
 
     let startCoords = null;
     let destinationCoords = null;
+    let userLocation = null;
 
-    // Initialize Mapbox Geocoders for start and destination
-    const startGeocoder = new MapboxGeocoder({
-        accessToken: mapboxgl.accessToken,
-        placeholder: 'Enter Starting Location',
-        mapboxgl: mapboxgl
-    });
+    // Get user's current location
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+            userLocation = [position.coords.longitude, position.coords.latitude];
+            initializeGeocoders();
+        }, error => {
+            console.error('Error getting location:', error);
+            initializeGeocoders();
+        });
+    } else {
+        console.error('Geolocation is not supported by this browser.');
+        initializeGeocoders();
+    }
 
-    const destinationGeocoder = new MapboxGeocoder({
-        accessToken: mapboxgl.accessToken,
-        placeholder: 'Enter Destination',
-        mapboxgl: mapboxgl
-    });
+    function initializeGeocoders() {
+        // Initialize Mapbox Geocoders for start and destination
+        const startGeocoder = new MapboxGeocoder({
+            accessToken: mapboxgl.accessToken,
+            placeholder: 'Enter Starting Location',
+            mapboxgl: mapboxgl,
+            proximity: userLocation ? { longitude: userLocation[0], latitude: userLocation[1] } : undefined
+        });
 
-    // Handle geocoder result for starting location
-    startGeocoder.on('result', (e) => {
-        if (e.result && e.result.geometry) {
-            startCoords = e.result.geometry.coordinates;
-        } else {
-            alert("Invalid starting location. Please try again.");
-        }
-    });
+        const destinationGeocoder = new MapboxGeocoder({
+            accessToken: mapboxgl.accessToken,
+            placeholder: 'Enter Destination',
+            mapboxgl: mapboxgl,
+            proximity: userLocation ? { longitude: userLocation[0], latitude: userLocation[1] } : undefined
+        });
 
-    // Handle geocoder result for destination
-    destinationGeocoder.on('result', (e) => {
-        if (e.result && e.result.geometry) {
-            destinationCoords = e.result.geometry.coordinates;
-        } else {
-            alert("Invalid destination. Please try again.");
-        }
-    });
+        // Handle geocoder result for starting location
+        startGeocoder.on('result', (e) => {
+            if (e.result && e.result.geometry) {
+                startCoords = e.result.geometry.coordinates;
+            } else {
+                alert("Invalid starting location. Please try again.");
+            }
+        });
 
-    // Append geocoders to their respective divs
-    document.getElementById('start-geocoder').appendChild(startGeocoder.onAdd());
-    document.getElementById('destination-geocoder').appendChild(destinationGeocoder.onAdd());
+        // Handle geocoder result for destination
+        destinationGeocoder.on('result', (e) => {
+            if (e.result && e.result.geometry) {
+                destinationCoords = e.result.geometry.coordinates;
+            } else {
+                alert("Invalid destination. Please try again.");
+            }
+        });
+
+        // Append geocoders to their respective divs
+        document.getElementById('start-geocoder').appendChild(startGeocoder.onAdd());
+        document.getElementById('destination-geocoder').appendChild(destinationGeocoder.onAdd());
+    }
 
     function saveLocationsAndNavigate() {
         if (!startCoords || !destinationCoords) {
@@ -193,9 +216,12 @@
         }
 
         const mode = document.getElementById('mode').value;
+        const avoidCategories = Array.from(document.getElementById('avoidCategories').selectedOptions).map(option => option.value);
+
         localStorage.setItem('startLocation', JSON.stringify(startCoords));
         localStorage.setItem('destination', JSON.stringify(destinationCoords));
-        localStorage.setItem('navigationMode', mode); // Save the selected mode
+        localStorage.setItem('navigationMode', mode);
+        localStorage.setItem('avoidCategories', JSON.stringify(avoidCategories));
 
         // Navigate to navigation.html to show directions
         window.location.href = 'navigation.html';
@@ -211,6 +237,18 @@
 
     function goToDestination() {
         window.location.href = 'destination.html';
+    }
+
+    function populateCategories() {
+        const dropdown = document.getElementById('avoidCategories');
+        const categories = JSON.parse(localStorage.getItem('categories')) || [];
+
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            dropdown.appendChild(option);
+        });
     }
 
     // Dark mode toggle logic
@@ -231,6 +269,8 @@
         document.body.classList.add('dark-mode');
         document.getElementById('toggleDarkMode').textContent = 'L';
     }
+
+    populateCategories();
 </script>
 </body>
 </html>

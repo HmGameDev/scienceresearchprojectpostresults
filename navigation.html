@@ -58,8 +58,10 @@
     let startCoords = JSON.parse(localStorage.getItem('startLocation'));
     let destinationCoords = JSON.parse(localStorage.getItem('destination'));
     let selectedMode = localStorage.getItem('navigationMode') || 'driving';
+    let avoidCategories = JSON.parse(localStorage.getItem('avoidCategories')) || [];
     let spokenSteps = new Set();
     let proximityAlertTriggered = false;
+    let obstacles = JSON.parse(localStorage.getItem('obstacles')) || [];
 
     function initializeMap() {
         map = L.map('map').setView([40.712776, -74.005974], 12);
@@ -158,11 +160,34 @@
             }
         }).addTo(map);
 
-        // Update directions panel
         routingControl.on('routesfound', function(e) {
             const routes = e.routes;
             steps = routes[0].instructions;
+
+            const avoidObstacles = getAvoidObstacles();
+            if (avoidObstacles.length > 0) {
+                optimizeRoute(avoidObstacles);
+            }
         });
+    }
+
+    function getAvoidObstacles() {
+        return obstacles.filter(obstacle => avoidCategories.some(category => obstacle.categories.includes(category)));
+    }
+
+    function optimizeRoute(avoidObstacles) {
+        const avoidAreas = avoidObstacles.map(obstacle => {
+            return {
+                latLng: obstacle.latlng,
+                radius: obstacle.size === 'small' ? 1.52 : obstacle.size === 'large' ? 3.05 : 2.13
+            };
+        });
+
+        routingControl.getRouter().options.avoidPolygons = avoidAreas.map(area => {
+            return L.circle(area.latLng, {radius: area.radius}).getLatLngs();
+        });
+
+        routingControl.route();
     }
 
     function speakDirection(text) {
@@ -172,7 +197,6 @@
 
     function loadObstacles() {
         obstacleLayer = L.layerGroup().addTo(map);
-        const obstacles = JSON.parse(localStorage.getItem('obstacles')) || [];
         obstacles.forEach(obstacle => {
             L.circle(obstacle.latlng, {
                 color: 'red',
@@ -184,7 +208,6 @@
     }
 
     function checkProximityToObstacles(lat, lng) {
-        const obstacles = JSON.parse(localStorage.getItem('obstacles')) || [];
         obstacles.forEach(obstacle => {
             const distance = map.distance([lat, lng], obstacle.latlng);
             if (distance <= (obstacle.size === 'small' ? 1.52 : obstacle.size === 'large' ? 3.05 : 2.13) && !proximityAlertTriggered) {
