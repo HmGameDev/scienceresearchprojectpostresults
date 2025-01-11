@@ -7,6 +7,13 @@ let allowObstacleClick = false;
 let proximityAlertTriggered = false;
 let userName = '';
 
+// Function to speak a text message
+function speak(text) {
+    const msg = new SpeechSynthesisUtterance();
+    msg.text = text;
+    window.speechSynthesis.speak(msg);
+}
+
 // Initialize the map
 function initMap() {
     console.log("Initializing map...");
@@ -79,7 +86,14 @@ function checkProximityToObstacles(lat, lng) {
         const distance = map.distance([lat, lng], obstacle.latlng);
         if (distance <= 2.13 && !proximityAlertTriggered) {
             proximityAlertTriggered = true;
-            alert(`Warning: You are within 7 feet of the obstacle "${obstacle.name}"!`);
+            const notificationType = localStorage.getItem('notificationType') || 'tts';
+            
+            if (notificationType === 'tts') {
+                speak(`Warning: You are within 7 feet of the obstacle "${obstacle.name}"!`);
+            } else {
+                alert(`Warning: You are within 7 feet of the obstacle "${obstacle.name}"!`);
+            }
+
             setTimeout(() => proximityAlertTriggered = false, 5000);
         }
     });
@@ -203,10 +217,14 @@ function updateObstacleList() {
     const obstacleList = document.getElementById('obstacleList');
     obstacleList.innerHTML = '';
 
+    const selectedCategory = document.getElementById('categoryDropdown').value;
+
     obstacles.forEach(obstacle => {
-        const listItem = document.createElement('li');
-        listItem.textContent = `${obstacle.name} - (${obstacle.latlng.lat.toFixed(5)}, ${obstacle.latlng.lng.toFixed(5)}) [${obstacle.categories.join(', ')}] - ${obstacle.size}`;
-        obstacleList.appendChild(listItem);
+        if (selectedCategory === '' || obstacle.categories.includes(selectedCategory)) {
+            const listItem = document.createElement('li');
+            listItem.textContent = `${obstacle.name} - (${obstacle.latlng.lat.toFixed(5)}, ${obstacle.latlng.lng.toFixed(5)}) [${obstacle.categories.join(', ')}] - ${obstacle.size}`;
+            obstacleList.appendChild(listItem);
+        }
     });
 
     obstacleList.style.display = 'block'; // Ensure the list is visible
@@ -305,9 +323,6 @@ function filterObstaclesByCategory() {
 
     obstacles.forEach(obstacle => {
         if (selectedCategory === '' || obstacle.categories.includes(selectedCategory)) {
-            const listItem = document.createElement('li');
-            listItem.textContent = `${obstacle.name} - (${obstacle.latlng.lat.toFixed(5)}, ${obstacle.latlng.lng.toFixed(5)}) [${obstacle.categories.join(', ')}] - ${obstacle.size}`;
-            document.getElementById('obstacleList').appendChild(listItem);
             L.circle(obstacle.latlng, {
                 color: 'green',
                 fillColor: '#0f0',
@@ -317,7 +332,7 @@ function filterObstaclesByCategory() {
         }
     });
 
-    document.getElementById('obstacleList').style.display = 'block'; // Ensure the list is visible
+    updateObstacleList();
 }
 
 // Periodically update obstacles
